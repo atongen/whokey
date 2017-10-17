@@ -1,0 +1,15 @@
+*.byte
+*.native
+*.mo
+/_build/
+/api-oasis.docdir
+/doc/MANUAL.mkd
+/setup.data
+/setup.log
+/src/cli/CLIPluginsLoaded.ml
+/src/oasis/OASISConf.ml
+/bindist
+/patches-to-apply
+/tarballs
+/test/oUnit.log
+/dist/

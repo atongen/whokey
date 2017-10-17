@@ -4,8 +4,9 @@ Version:     0.0.1
 Synopsis:    Who's key?
 Authors:     Andrew Tongen
 License:     GPL-3.0
-Plugins:     META (0.4)
+Plugins:     META (0.4), DevFiles (0.4)
 Executable whokey
-  Path:       src
-  BuildTools: ocamlbuild
-  MainIs:     src/main.ml
+  Path:           src
+  BuildTools:     ocamlbuild
+  CompiledObject: native
+  MainIs:         main.ml
