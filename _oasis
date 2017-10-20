@@ -9,4 +9,5 @@ Executable whokey
   Path:           src
   BuildTools:     ocamlbuild
   CompiledObject: native
+  BuildDepends:   core,threads
   MainIs:         main.ml
