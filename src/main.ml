@@ -1,5 +1,5 @@
 (* for x in certificates/*; do ssh-keygen -E md5 -l -f $x 2>/dev/null; done *)
-let keyTuples = [
+let keys = [
   "37:c9:85:f8:7d:b7:b8:da:6a:47:3e:ea:97:05:9c:ce", "atongen@bellona-2015-10-01";
   "7f:f5:ce:84:b0:b8:df:c4:31:b7:87:6b:98:ff:12:99", "brian.reed@ave81.com";
   "60:74:ea:fd:39:7a:c9:52:35:79:5b:31:f2:5c:d9:52", "cjamison@cjamison-desktop";
@@ -17,28 +17,67 @@ let keyTuples = [
   "94:7e:00:6d:8b:22:77:c5:8d:fe:9a:f9:6f:95:65:40", "timothybreitkreutz@Tim-B-iMac";
 ]
 
-let rec print_list = function
-  [] -> ()
-  | h::t -> print_string h ; print_string " " ; print_list t
+(* https://stackoverflow.com/questions/39813584/how-to-split-on-whitespaces-in-ocaml *)
+let split str = Str.split (Str.regexp "[ \n\r\x0c\t]+") str
 
-let keys = Core.Std.Map.Poly.of_alist_exn keyTuples
+let sublist l s e =
+  let a = Array.of_list l in
+  let sub = Array.sub a s e in
+  Array.to_list sub
 
-(* Run a command and return its results as a list of strings,
-   one per line. *)
-let read_process_lines command =
-  let lines = ref [] in
-  let in_channel = Unix.open_process_in command in
-  begin
-    try
-      while true do
-        lines := input_line in_channel :: !lines
-      done;
-    with End_of_file ->
-      ignore (Unix.close_process_in in_channel)
-  end;
-  List.rev !lines
+let sublist_str l s e = String.concat " " (sublist l s e)
 
-let lasts = read_process_lines "last"
+let rec each f l =
+  match l with
+  | [] -> ()
+  | hd::tl -> f hd; each f tl
+
+let print_list l = each (fun x -> print_string (x ^ "\n")) l
+
+let run cmd =
+  let inp = Unix.open_process_in cmd in
+  let r = Core.Std.In_channel.input_lines inp in
+  Core.Std.In_channel.close inp; r
+
+(*
+ * ubuntu   pts/5        Mon Oct  2 15:18:21 2017 - Mon Oct  2 15:19:41 2017  (00:01)
+ * or
+ * ubuntu   pts/0        Sat Oct 28 14:21:11 2017   still logged in
+ * or
+ * ubuntu   tty7         Mon Oct  2 08:14:16 2017 - crash                     (23:51)
+ *)
+type last = { user: string; pts: string; timestamp: string }
+
+let last_of_str str =
+  let tokens = split str in
+  {
+    user = List.nth tokens 0;
+    pts = List.nth tokens 1;
+    timestamp = sublist_str tokens 3 3;
+  }
+
+let str_of_last { user = u; pts = p; timestamp = t } =
+  Printf.sprintf "u: '%s' pts: '%s' ts: '%s'" u p t
+
+(*
+ * Oct 27 17:53:03 drip-production-ansible sshd[14313]: Accepted publickey for ubuntu from 216.70.43.154 port 32876 ssh2: RSA 37:c9:85:f8:7d:b7:b8:da:6a:47:3e:ea:97:05:9c:ce
+ *)
+type auth = { user: string; timestamp: string; ip: string; fingerprint: string }
+
+let auth_of_str str =
+  let tokens = split str in
+  {
+    user = List.nth tokens 8;
+    timestamp = sublist_str tokens 0 3;
+    ip = List.nth tokens 10;
+    fingerprint = List.nth tokens 15;
+  }
+
+let str_of_auth { user = u; timestamp = t; ip = i; fingerprint = f; } =
+  Printf.sprintf "u: '%s' ts: '%s' ip: '%s' fp = '%s'" u t i f
 
 let () =
-  print_list lasts
+  let last_strs = run "last -FRad -n 100 | grep 'pts/'" in
+  let lasts = List.map last_of_str last_strs in
+  let auth_strs = run "cat /home/atongen/Workspace/personal/whokey/auth.log | grep 'Accepted publickey for '" in
+  let auths = List.map auth_of_str auth_strs in
