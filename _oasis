@@ -5,9 +5,31 @@ Synopsis:    Who's key?
 Authors:     Andrew Tongen
 License:     GPL-3.0
 Plugins:     META (0.4), DevFiles (0.4)
-Executable whokey
+
+Executable "whokey"
   Path:           src
   BuildTools:     ocamlbuild
   CompiledObject: native
-  BuildDepends:   core,threads,str
+  BuildDepends:   core, threads, str
   MainIs:         main.ml
+
+Library "keys"
+  Path:         src
+  Modules:      Keys
+  BuildDepends: core, threads, str, yojson
+  BuildTools:   ocamlbuild
+
+Executable "test_whokey"
+  Path:           src
+  MainIs:         test.ml
+  Install:        false
+  CompiledObject: best
+  Build$:         flag(tests)
+  BuildDepends:   core, threads, str, oUnit (>= 2.0.0), findlib, keys
+  BuildTools:     ocamlbuild
+
+Test "test_whokey"
+  Run$:             flag(tests)
+  TestTools:        test_whokey
+  Command:          $test_whokey
+  WorkingDirectory: src
