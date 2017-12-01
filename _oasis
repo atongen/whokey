@@ -19,13 +19,19 @@ Library "keys"
   BuildDepends: core, threads, str, yojson
   BuildTools:   ocamlbuild
 
+Library "time_parser"
+  Path:         src
+  Modules:      Time_parser
+  BuildDepends: core, threads, str
+  BuildTools:   ocamlbuild
+
 Executable "test_whokey"
   Path:           src
   MainIs:         test.ml
   Install:        false
   CompiledObject: best
   Build$:         flag(tests)
-  BuildDepends:   core, threads, str, oUnit (>= 2.0.0), findlib, keys
+  BuildDepends:   core, threads, str, oUnit (>= 2.0.0), findlib, keys, time_parser
   BuildTools:     ocamlbuild
 
 Test "test_whokey"
