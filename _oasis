@@ -13,16 +13,10 @@ Executable "whokey"
   BuildDepends:   core, threads, str
   MainIs:         main.ml
 
-Library "keys"
+Library "whokeyLib"
   Path:         src
-  Modules:      Keys
+  Modules:      Keys, Time_parser
   BuildDepends: core, threads, str, yojson
-  BuildTools:   ocamlbuild
-
-Library "time_parser"
-  Path:         src
-  Modules:      Time_parser
-  BuildDepends: core, threads, str
   BuildTools:   ocamlbuild
 
 Executable "test_whokey"
@@ -31,7 +25,7 @@ Executable "test_whokey"
   Install:        false
   CompiledObject: best
   Build$:         flag(tests)
-  BuildDepends:   core, threads, str, oUnit (>= 2.0.0), findlib, keys, time_parser
+  BuildDepends:   core, threads, str, oUnit (>= 2.0.0), findlib, whokeyLib
   BuildTools:     ocamlbuild
 
 Test "test_whokey"
