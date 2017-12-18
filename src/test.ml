@@ -7,8 +7,9 @@ let fae exp got _test_ctxt = assert_equal ~printer:Float.to_string exp got
 let aae exp got _test_ctxt = assert_equal ~printer:Auth.to_string exp got
 let lae exp got _test_ctxt = assert_equal ~printer:Last.to_string exp got
 
+let keys = Keys.from_file "/home/atongen/Workspace/personal/whokey/keys.json"
+
 let suite =
-  let keys = Keys.from_file "/home/atongen/Workspace/personal/whokey/keys.json" in
   [
     "keys-00">::
       ae (Some "atongen@bellona-2015-10-01") (Keys.find keys "37:c9:85:f8:7d:b7:b8:da:6a:47:3e:ea:97:05:9c:ce");
