@@ -5,7 +5,7 @@ type t = {
 }
 
 let of_string str =
-  let tokens = split str in
+  let tokens = Util.split str in
   {
     user = List.nth tokens 8;
     timestamp = Util.sublist_str tokens 0 3 |> Time_parser.of_auth;
@@ -13,4 +13,4 @@ let of_string str =
   }
 
 let to_string { user; timestamp; fingerprint; } =
-  Printf.sprintf "%s %s %s" (Time_parser.epoch timestamp) user fingerprint
+  Printf.sprintf "%.0f %s %s" (Time_parser.epoch timestamp) user fingerprint

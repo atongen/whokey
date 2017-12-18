@@ -13,4 +13,4 @@ let of_string str =
   }
 
 let to_string { user; timestamp; pts } =
-  Printf.sprintf "%f %s %s" (Time_parser.epoch timestamp) user pts
+  Printf.sprintf "%.0f %s %s" (Time_parser.epoch timestamp) user pts
