@@ -9,3 +9,5 @@ val of_last : string -> t
 val of_auth : string -> t
 
 val epoch : t -> float
+
+val of_float : float -> t

@@ -4,7 +4,7 @@ let diff t1 t2 =
   t2 -. t1
 
 let same t1 t2 =
-  diff t1 t2 < 1.0
+  diff t1 t2 <= 1.0
 
 let months =
   ["Jan", 0; "Feb", 1; "Mar", 2; "Apr", 3; "May",  4; "Jun",  5;
@@ -57,3 +57,5 @@ let of_auth str =
 
 
 let epoch x = x
+
+let of_float x = x

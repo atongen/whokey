@@ -2,12 +2,27 @@ open Core.Std
 open OUnit2
 
 let ae exp got _test_ctxt = assert_equal exp got
+
 let sae exp got _test_ctxt = assert_equal ~printer:String.to_string exp got
+let iae exp got _test_ctxt = assert_equal ~printer:Int.to_string exp got
+let bae exp got _test_ctxt = assert_equal ~printer:Bool.to_string exp got
+
 let fae exp got _test_ctxt = assert_equal ~printer:Float.to_string exp got
 let aae exp got _test_ctxt = assert_equal ~printer:Auth.to_string exp got
 let lae exp got _test_ctxt = assert_equal ~printer:Last.to_string exp got
 
 let keys = Keys.from_file "/home/atongen/Workspace/personal/whokey/keys.json"
+
+let t1 = Time_parser.of_float 1513900591.0
+let t2 = Time_parser.of_float 1513902285.0
+let t3 = Time_parser.of_float 1513902286.0
+
+let auth1 = Auth.of_string "Dec 21 17:56:31 drip-staging-ansible sshd[29664]: Accepted publickey for ubuntu from 24.52.56.2 port 57126 ssh2: RSA SHA256:A7QkW++563PAB+LEs6JD/mB+YyC7OUI2p5UsPb+25vA"
+let auth2 = Auth.of_string "Dec 21 18:24:45 drip-staging-ansible sshd[29829]: Accepted publickey for ubuntu from 216.70.43.154 port 20966 ssh2: RSA SHA256:auz5n5RrA1X0IFXvaZr7VEuR/WpsA9FIOPS1yGtaRzI"
+let auths = [auth1; auth2]
+
+let last1 = Last.of_string "ubuntu   pts/0        Thu Dec 21 18:24:45 2017   still logged in"
+let last2 = Last.of_string "ubuntu   pts/0        Thu Dec 21 17:56:31 2017 - Thu Dec 21 18:16:32 2017  (00:20)"
 
 let suite =
   [
@@ -19,6 +34,12 @@ let suite =
 
     "time_parser-01">::
       fae 1509144783.0 (Time_parser.of_auth "Oct 27 17:53:03" |> Time_parser.epoch);
+
+    "Time_parser-02">::
+      bae false (Time_parser.same t1 t2);
+
+    "Time_parser-03">::
+      bae true (Time_parser.same t2 t3);
 
     "auth-00">::
       sae "1509144783 john 37:c9:85:f8:7d:b7:b8:dd:6a:42:3e:ca:97:05:9c:ce"
@@ -33,6 +54,19 @@ let suite =
     "last-02">::
       sae "1506950056 ubuntu tty7"
         (Last.of_string "ubuntu   tty7         Mon Oct  2 08:14:16 2017 - crash                     (23:51)" |> Last.to_string);
+
+    "last-03">::
+      bae true (Last.is_auth last1 auth2);
+    "last-04">::
+      bae true (Last.is_auth last2 auth1);
+
+    "last-05">::
+      bae false (Last.is_auth last1 auth1);
+    "last-06">::
+      bae false (Last.is_auth last2 auth2);
+
+    "last-07">::
+      iae 1 (List.length (Last.find_auths last2 auths));
   ]
 
 let () =

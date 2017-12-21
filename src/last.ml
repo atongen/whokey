@@ -18,7 +18,7 @@ let to_string { user; timestamp; pts } =
 let is_auth {user=lu; timestamp=lt; pts=lp}
             {Auth.
               user=au; timestamp=at; fingerprint=af} =
-  lu = au && Time_parser.same lt at
+  (lu = au) && (Time_parser.same lt at)
 
 let find_auths last auths =
   let is_my_auth auth =
