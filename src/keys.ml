@@ -11,7 +11,10 @@ let alist_from_file path =
     (fingerprint, key_json |> Yojson.Basic.Util.to_string))
 
 let from_file path =
-  let alist = alist_from_file path in
+  from_alist (alist_from_file path)
+
+let from_alist alist =
   Map.of_alist_exn alist ~comparator:String.comparator;;
+
 
 let find keys key = Map.find keys key

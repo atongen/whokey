@@ -1,7 +1,7 @@
 type t = float
 
 let diff t1 t2 =
-  t2 -. t1
+  abs_float (t2 -. t1)
 
 let same t1 t2 =
   diff t1 t2 <= 1.0
