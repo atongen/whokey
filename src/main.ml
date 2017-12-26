@@ -25,31 +25,33 @@ let run cmd =
   let r = In_channel.input_lines inp in
   In_channel.close inp; r
 
-let lasts =
-  let myLasts = run "last -FRad" in
-  let pts = List.filter myLasts (fun x -> Util.contains x "pts/") in
+let get_last_list = run "last -FRad"
+
+let get_file_lines file = In_channel.read_lines file
+
+let lasts last_list =
+  let pts = List.filter last_list (fun x -> Util.contains x "pts/") in
 	List.map pts Last.of_string
 
-let auths file =
-  let lines = In_channel.read_lines file in
-  let accepted = List.filter lines (fun x -> Util.contains x "Accepted publickey for ") in
+let auths auth_list =
+  let accepted = List.filter auth_list (fun x -> Util.contains x "Accepted publickey for ") in
   List.map accepted Auth.of_string
 
-let auth_id auth =
-  match Keys.find keys auth.fingerprint with
+let auth_id { Auth.fingerprint = f } =
+  match Keys.find keys f with
   | None    -> "unknown"
   | Some(x) -> x
 
-
 let print_auths last auths =
   List.iter auths (fun auth ->
-    (* print out the details here! *)
+    let id = auth_id auth in
+      Printf.printf "%s %s %s" id (Last.to_string last) (Auth.to_string auth)
   )
 
 let () =
-  let myLasts = lasts in
-  let myAuths = auths "/home/atongen/Workspace/personal/whokey/auth.log" in
+  let myLasts = lasts (get_file_lines "/home/atongen/Workspace/personal/whokey/last.log") in
+  let myAuths = auths (get_file_lines "/home/atongen/Workspace/personal/whokey/auth.log") in
   List.iter myLasts (fun last ->
-    let auths = Last.find_auths last myAuths
-      print_auths last auth
+    let auths = Last.find_auths last myAuths in
+      print_auths last auths
   )

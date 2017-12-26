@@ -10,12 +10,12 @@ Executable "whokey"
   Path:           src
   BuildTools:     ocamlbuild
   CompiledObject: native
-  BuildDepends:   core, threads, str
+  BuildDepends:   core, threads, str, whokeyLib
   MainIs:         main.ml
 
 Library "whokeyLib"
   Path:         src
-  Modules:      Keys, Time_parser
+  Modules:      Keys, Time_parser, Util, Auth, Last
   BuildDepends: core, threads, str, yojson
   BuildTools:   ocamlbuild
 
