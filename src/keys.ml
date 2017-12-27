@@ -1,7 +1,5 @@
 open Core.Std
 
-(* for x in certificates/*; do ssh-keygen -E md5 -l -f $x 2>/dev/null; done *)
-
 type t = string String.Map.t
 
 let alist_from_file path =

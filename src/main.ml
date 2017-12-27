@@ -1,21 +1,28 @@
 open Core.Std
 
+(* for x in certificates/*; do ssh-keygen -l -f $x 2>/dev/null; done *)
+
 let keys_alist = [
-  "37:c9:85:f8:7d:b7:b8:da:6a:47:3e:ea:97:05:9c:ce", "atongen@bellona-2015-10-01";
-  "7f:f5:ce:84:b0:b8:df:c4:31:b7:87:6b:98:ff:12:99", "brian.reed@ave81.com";
-  "60:74:ea:fd:39:7a:c9:52:35:79:5b:31:f2:5c:d9:52", "cjamison@cjamison-desktop";
-  "c2:db:5c:cc:df:64:7d:8e:b3:23:0c:e9:d4:84:71:4e", "derrickreimer@gmail.com";
-  "14:ff:25:35:d6:04:43:2f:31:eb:57:21:6d:cf:b1:6a", "drip-ansible-key";
-  "6e:33:de:b0:9f:6f:f1:44:e6:c6:16:b3:9c:78:66:b3", "drip-staging-ansible-key";
-  "0a:92:94:05:db:92:de:92:00:ac:e6:d4:47:c4:ec:0a", "dustin.blomquist@gmail.com";
-  "ab:30:87:55:f8:aa:17:8b:e2:0a:6b:66:ad:33:ae:3d", "iantnance@gmail.com";
-  "f5:1f:7a:d7:78:3d:f5:36:c8:f2:56:9d:53:f7:a2:c9", "jonhanson@Jon-H-MBP.local";
-  "39:17:56:b2:01:f1:5f:f0:56:fe:dc:eb:19:00:3d:3c", "michaelnadel@Michael-N-MBP.local";
-  "5a:62:f0:a9:89:09:2c:9f:bf:69:33:a1:df:57:0e:df", "robynsamuda@Robyn-S-MBP.local";
-  "85:6e:27:49:3f:fa:a0:0f:ee:11:4d:e9:5d:32:de:68", "steven@stevenbone.com";
-  "de:2e:37:ca:56:c9:62:10:18:1e:25:ff:fa:3d:6f:ac", "taylor.sampson@ave81.com";
-  "45:53:65:5c:2c:fb:21:f3:bf:fc:e7:93:15:60:a4:5a", "tim@Dragon.local";
-  "94:7e:00:6d:8b:22:77:c5:8d:fe:9a:f9:6f:95:65:40", "timothybreitkreutz@Tim-B-iMac";
+  "SHA256:v+4hK/EOo7Wl2akOEJvYBXRKQnJ4TE6YnmgsPOiFqrw", "aleckloss@Alec-K-MBP.local";
+  "SHA256:auz5n5RrA1X0IFXvaZr7VEuR/WpsA9FIOPS1yGtaRzI", "atongen@bellona-2015-10-01";
+  "SHA256:jkSLJHqf3MjmzvzvR75yGPUz9DYOq6LkjQ4IkV3y+Fw", "brian.reed@ave81.com";
+  "SHA256:ufQhqomTWGXPsjEdHWxyMRCIKXU+WfPwMTjmVZmAIkM", "charlie.bevis@drip.com";
+  "SHA256:zDX1qnfEemeM/RoCkHJlYiYgq2rU8OnHrBrw3pI57aQ", "cjamison@cjamison-desktop";
+  "SHA256:bzX+hm/fJLRRiaLJqynyVLSnIazRtkmu8iW2Wo89GtA", "derrickreimer@gmail.com";
+  "SHA256:13wlMClMazrthE2Hu3E4elAJnDZssF98XrG2AefnCpA", "aleckoss@Alec-K-MBP.local";
+  "SHA256:+ImShMUk/kLcIppmI7SsQ2dxMvsadHWGS9UEhu/V2gU", "drip-ansible-key";
+  "SHA256:UdmWQJsmcNtB+CQLIlLTyBFOLml6Oo84mS0T5o//3C0", "drip-staging-ansible-key";
+  "SHA256:A7QkW++563PAB+LEs6JD/mB+YyC7OUI2p5UsPb+25vA", "dustin.blomquist@gmail.com";
+  "SHA256:379V5CyHueNF2wpb9Cp+Jb+xPsC3+yYgJGRW8zGFFNQ", "iantnance@gmail.com";
+  "SHA256:wBhnyZyHS1YIgd6xhEclREOGnwpaui+GTAY4jQIAZ84", "jasonselby@Jason-Selbys-MBP.local";
+  "SHA256:CZkv+PGEEAOGLEHUITgIzncSp/OQ2/7lELzqnekKa/s", "jonhanson@Jon-H-MBP.local";
+  "SHA256:1tPElw97npyM62gB6p1UIyCTJH4sO0LQPr0EaiKQy9c", "michaelnadel@Michael-N-MBP.local";
+  "SHA256:jos06T3YMAXtfDZXo47abIDhyeUTCoFLnwlkP6b8u9E", "robynsamuda@Robyn-S-MBP.local";
+  "SHA256:7e593TUot6zAhaV76x3kYXK3EtEyabB4S2Nv1sMkWgg", "steven@stevenbone.com";
+  "SHA256:IAGa/vfcilXiI3S+qDeUAfoND069uysjPmkOtlVRzuE", "taylor.sampson@ave81.com";
+  "SHA256:AwTDjCC/h6FHF8bfK+fUGY7Txx3jQyzAwW8vvbdda4g", "tim@Dragon.local";
+  "SHA256:QzE0xkArNwiawIurNYlpSQYv00JHMgIhQGn7RJAkdDQ", "timothybreitkreutz@Tim-B-iMac";
+  "SHA256:8j/lY54vi4+VQPXZEoAKfTgtNeU1tUBFxMPHt7eVVLs", "trevorhaag@Trevor-H-MBP.local";
 ]
 
 let keys = Keys.from_alist keys_alist
