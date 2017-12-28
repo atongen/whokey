@@ -11,3 +11,5 @@ val of_auth : string -> t
 val epoch : t -> float
 
 val of_float : float -> t
+
+val pretty : t -> string

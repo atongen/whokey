@@ -13,7 +13,7 @@ let of_string str =
   }
 
 let to_string { user; timestamp; pts } =
-  Printf.sprintf "%.0f %s %s" (Time_parser.epoch timestamp) user pts
+  Printf.sprintf "%s %s %s" (Time_parser.pretty timestamp) user pts
 
 let is_auth {user=lu; timestamp=lt; pts=lp}
             {Auth.

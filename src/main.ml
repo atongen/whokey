@@ -32,33 +32,41 @@ let run cmd =
   let r = In_channel.input_lines inp in
   In_channel.close inp; r
 
-let get_last_list = run "last -FRad"
-
 let get_file_lines file = In_channel.read_lines file
 
 let lasts last_list =
-  let pts = List.filter last_list (fun x -> Util.contains x "pts/") in
-	List.map pts Last.of_string
+  let pts = List.filter last_list ~f:(fun x -> Util.contains x "pts/") in
+	List.map pts ~f:Last.of_string
 
 let auths auth_list =
-  let accepted = List.filter auth_list (fun x -> Util.contains x "Accepted publickey for ") in
-  List.map accepted Auth.of_string
+  let accepted = List.filter auth_list ~f:(fun x -> Util.contains x "Accepted publickey for ") in
+  List.map accepted ~f:Auth.of_string
 
-let auth_id { Auth.fingerprint = f } =
+let get_last_list =
+  (* run "last -FRad" *)
+  let cwd = Unix.getcwd() in
+  lasts (get_file_lines (cwd ^ "/last.log"))
+
+let get_auth_list =
+  (* auths (get_file_lines "/var/log/auth.log") *)
+  let cwd = Unix.getcwd() in
+  auths (get_file_lines (cwd ^ "/auth.log"))
+
+let auth_id { Auth.fingerprint = f; _ } =
   match Keys.find keys f with
-  | None    -> "unknown"
+  | None    -> "[UNKNOWN]"
   | Some(x) -> x
 
-let print_auths last auths =
-  List.iter auths (fun auth ->
+let print_auths { Last. user; timestamp; pts } auths =
+  List.iter auths ~f:(fun auth ->
     let id = auth_id auth in
-      Printf.printf "%s %s %s" id (Last.to_string last) (Auth.to_string auth)
+      Printf.printf "%s %s %s %s\n" (Time_parser.pretty timestamp) id user pts
   )
 
 let () =
-  let myLasts = lasts (get_file_lines "/home/atongen/Workspace/personal/whokey/last.log") in
-  let myAuths = auths (get_file_lines "/home/atongen/Workspace/personal/whokey/auth.log") in
-  List.iter myLasts (fun last ->
+  let myLasts = get_last_list in
+  let myAuths = get_auth_list in
+  List.iter myLasts ~f:(fun last ->
     let auths = Last.find_auths last myAuths in
       print_auths last auths
   )

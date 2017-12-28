@@ -20,9 +20,10 @@ let months =
 let of_last str =
   Scanf.sscanf str "%s %d %d:%d:%d %d"
     (fun mon day hour min sec year ->
+      let open Unix in
       let mon = List.assoc mon months in
-      fst (Unix.mktime {
-        Unix.tm_sec=sec;
+      fst (mktime {
+        tm_sec=sec;
         tm_min=min;
         tm_hour=hour;
         tm_mon=mon;
@@ -40,10 +41,11 @@ let of_last str =
 let of_auth str =
   Scanf.sscanf str "%s %d %d:%d:%d"
     (fun mon day hour min sec ->
-      let now = Unix.localtime (Unix.time ()) in
+      let open Unix in
+      let now = localtime (Unix.time ()) in
       let mon = List.assoc mon months in
-      fst (Unix.mktime {
-        Unix.tm_sec=sec;
+      fst (mktime {
+        tm_sec=sec;
         tm_min=min;
         tm_hour=hour;
         tm_mon=mon;
@@ -55,7 +57,17 @@ let of_auth str =
       })
     )
 
-
 let epoch x = x
 
 let of_float x = x
+
+let pretty x =
+  let open Unix in
+  let u = localtime x in
+  Printf.sprintf "%04d-%02d-%02d %02d:%02d:%02d"
+    (u.tm_year + 1900)
+    (u.tm_mon + 1)
+    u.tm_mday
+    u.tm_hour
+    u.tm_min
+    u.tm_sec

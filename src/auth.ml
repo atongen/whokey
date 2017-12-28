@@ -16,4 +16,4 @@ let of_string str =
   }
 
 let to_string { user; timestamp; fingerprint; } =
-  Printf.sprintf "%.0f %s %s" (Time_parser.epoch timestamp) user fingerprint
+  Printf.sprintf "%s %s %s" (Time_parser.pretty timestamp) user fingerprint
