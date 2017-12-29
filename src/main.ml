@@ -38,19 +38,34 @@ let lasts last_list =
   let pts = List.filter last_list ~f:(fun x -> Util.contains x "pts/") in
 	List.map pts ~f:Last.of_string
 
-let auths auth_list =
-  let accepted = List.filter auth_list ~f:(fun x -> Util.contains x "Accepted publickey for ") in
-  List.map accepted ~f:Auth.of_string
-
 let get_last_list =
   (* run "last -FRad" *)
   let cwd = Unix.getcwd() in
   lasts (get_file_lines (cwd ^ "/last.log"))
 
+let file_exists path =
+  try
+    Unix.stat path; true
+  with Unix.Unix_error (_, _, _) ->
+    false
+
 let get_auth_list =
-  (* auths (get_file_lines "/var/log/auth.log") *)
-  let cwd = Unix.getcwd() in
-  auths (get_file_lines (cwd ^ "/auth.log"))
+  let pathname idx =
+    match idx with
+    | 0 -> "/var/log/auth.log"
+    | n -> "/var/log/auth.log." ^ (Int.to_string n)
+  in
+  let rec aux idx ac =
+    let path = pathname idx in
+      if file_exists path; then
+        aux (idx + 1) (List.concat [ac; get_file_lines path])
+      else
+        ac
+  in
+  let results = aux 0 [] in
+  let accepted = List.filter results ~f:(fun x -> Util.contains x "Accepted publickey for ") in
+  let auths = List.map accepted ~f:Auth.of_string in
+  List.sort ~cmp:Auth.compare auths
 
 let auth_id { Auth.fingerprint = f; _ } =
   match Keys.find keys f with
@@ -66,7 +81,7 @@ let print_auths { Last. user; timestamp; pts } auths =
 let () =
   let myLasts = get_last_list in
   let myAuths = get_auth_list in
-  List.iter myLasts ~f:(fun last ->
-    let auths = Last.find_auths last myAuths in
-      print_auths last auths
-  )
+    List.iter myLasts ~f:(fun last ->
+      let auths = Last.find_auths last myAuths in
+        print_auths last auths
+    )

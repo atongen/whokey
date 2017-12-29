@@ -17,3 +17,6 @@ let of_string str =
 
 let to_string { user; timestamp; fingerprint; } =
   Printf.sprintf "%s %s %s" (Time_parser.pretty timestamp) user fingerprint
+
+let compare a1 a2 =
+  compare (Time_parser.epoch a1.timestamp) (Time_parser.epoch a2.timestamp)
