@@ -25,8 +25,8 @@ let t1 = Time_parser.of_float 1513900591.0
 let t2 = Time_parser.of_float 1513902285.0
 let t3 = Time_parser.of_float 1513902286.0
 
-let auth1 = Auth.of_string "Dec 21 17:56:31 drip-staging-ansible sshd[29664]: Accepted publickey for ubuntu from 24.52.56.2 port 57126 ssh2: RSA SHA256:A7QkW++563PAB+LEs6JD/mB+YyC7OUI2p5UsPb+25vA"
-let auth2 = Auth.of_string "Dec 21 18:24:45 drip-staging-ansible sshd[29829]: Accepted publickey for ubuntu from 216.70.43.154 port 20966 ssh2: RSA SHA256:auz5n5RrA1X0IFXvaZr7VEuR/WpsA9FIOPS1yGtaRzI"
+let auth1 = Auth.of_string "Dec 21 17:56:31 server-staging-ansible sshd[29664]: Accepted publickey for ubuntu from 24.52.56.2 port 57126 ssh2: RSA SHA256:A7QkW++563PAB+LEs6JD/mB+YyC7OUI2p5UsPb+25vA"
+let auth2 = Auth.of_string "Dec 21 18:24:45 server-staging-ansible sshd[29829]: Accepted publickey for ubuntu from 216.70.43.154 port 20966 ssh2: RSA SHA256:auz5n5RrA1X0IFXvaZr7VEuR/WpsA9FIOPS1yGtaRzI"
 let auths = [auth1; auth2]
 
 let last1 = Last.of_string "ubuntu   pts/0        Thu Dec 21 18:24:45 2017   still logged in"

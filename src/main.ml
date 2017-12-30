@@ -1,7 +1,5 @@
 open Core.Std
 
-(* for x in certificates/*; do ssh-keygen -l -f $x 2>/dev/null; done *)
-
 let keys_alist = [
   "SHA256:v+4hK/EOo7Wl2akOEJvYBXRKQnJ4TE6YnmgsPOiFqrw", "aleckloss@Alec-K-MBP.local";
   "SHA256:auz5n5RrA1X0IFXvaZr7VEuR/WpsA9FIOPS1yGtaRzI", "atongen@bellona-2015-10-01";

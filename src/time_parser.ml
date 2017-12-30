@@ -10,13 +10,6 @@ let months =
   ["Jan", 0; "Feb", 1; "Mar", 2; "Apr", 3; "May",  4; "Jun",  5;
    "Jul", 6; "Aug", 7; "Sep", 8; "Oct", 9; "Nov", 10; "Dec", 11]
 
-(*
- * ubuntu   pts/5        Mon Oct  2 15:18:21 2017 - Mon Oct  2 15:19:41 2017  (00:01)
- * or
- * ubuntu   pts/0        Sat Oct 28 14:21:11 2017   still logged in
- * or
- * ubuntu   tty7         Mon Oct  2 08:14:16 2017 - crash                     (23:51)
- *)
 let of_last str =
   Scanf.sscanf str "%s %d %d:%d:%d %d"
     (fun mon day hour min sec year ->
@@ -35,9 +28,6 @@ let of_last str =
       })
     )
 
-(*
- * Oct 27 17:53:03 drip-production-ansible sshd[14313]: Accepted publickey for ubuntu from 216.70.43.154 port 32876 ssh2: RSA 37:c9:85:f8:7d:b7:b8:da:6a:47:3e:ea:97:05:9c:ce
- *)
 let of_auth str =
   Scanf.sscanf str "%s %d %d:%d:%d"
     (fun mon day hour min sec ->

@@ -15,12 +15,11 @@ let of_string str =
 let to_string { user; timestamp; pts } =
   Printf.sprintf "%s %s %s" (Time_parser.pretty timestamp) user pts
 
-let is_auth {user=lu; timestamp=lt; pts=lp}
+let is_auth {user=lu; timestamp=lt; _}
             {Auth.
-              user=au; timestamp=at; fingerprint=af} =
+              user=au; timestamp=at; _} =
   (lu = au) && (Time_parser.same lt at)
 
 let find_auths last auths =
-  let is_my_auth auth =
-    is_auth last auth in
+  let is_my_auth auth = is_auth last auth in
   List.filter is_my_auth auths
