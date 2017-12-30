@@ -12,5 +12,23 @@ let contains s1 s2 =
 	let re = Str.regexp_string s2 in
 	try
 		ignore (Str.search_forward re s1 0);
-			 true
-	with Not_found -> false
+		true
+	with Not_found ->
+		false
+
+let file_exists path =
+  try
+    ignore (Unix.stat path);
+    true
+  with Unix.Unix_error (_, _, _) ->
+    false
+
+let run cmd =
+	let open Core.Std in
+  let inp = Unix.open_process_in cmd in
+  let r = In_channel.input_lines inp in
+  In_channel.close inp; r
+
+let get_file_lines file =
+	let open Core.Std in
+	In_channel.read_lines file

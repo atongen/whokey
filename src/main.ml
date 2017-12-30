@@ -27,45 +27,39 @@ let keys_alist = [
 
 let keys = Keys.from_alist keys_alist
 
-let run cmd =
-  let inp = Unix.open_process_in cmd in
-  let r = In_channel.input_lines inp in
-  In_channel.close inp; r
-
-let get_file_lines file = In_channel.read_lines file
-
 let lasts last_list =
-  let pts = List.filter last_list ~f:(fun x -> Util.contains x "pts/") in
-	List.map pts ~f:Last.of_string
+  List.filter last_list ~f:(fun x -> Util.contains x "pts/") |>
+	List.map ~f:Last.of_string
 
 let get_last_list =
-  (* run "last -FRad" *)
+  (* Util.run "last -FRad" *)
   let cwd = Unix.getcwd() in
-  lasts (get_file_lines (cwd ^ "/last.log"))
+  lasts (Util.get_file_lines (cwd ^ "/last.log"))
 
-let file_exists path =
-  try
-    Unix.stat path; true
-  with Unix.Unix_error (_, _, _) ->
-    false
+let auth_log_base =
+  (* "/var/log/auth.log" *)
+  let cwd = Unix.getcwd() in
+  cwd ^ "/auth.log"
 
 let get_auth_list =
   let pathname idx =
+    let base = auth_log_base in
     match idx with
-    | 0 -> "/var/log/auth.log"
-    | n -> "/var/log/auth.log." ^ (Int.to_string n)
+    | 0 -> base
+    | n -> base ^ (Int.to_string n)
   in
   let rec aux idx ac =
     let path = pathname idx in
-      if file_exists path; then
-        aux (idx + 1) (List.concat [ac; get_file_lines path])
+      if Util.file_exists path; then
+        let lines = Util.get_file_lines path |>
+          List.filter ~f:(fun x -> Util.contains x "Accepted publickey for ") in
+        aux (idx + 1) (List.concat [ac; lines])
       else
         ac
   in
-  let results = aux 0 [] in
-  let accepted = List.filter results ~f:(fun x -> Util.contains x "Accepted publickey for ") in
-  let auths = List.map accepted ~f:Auth.of_string in
-  List.sort ~cmp:Auth.compare auths
+  aux 0 [] |>
+  List.map ~f:Auth.of_string |>
+  List.sort ~cmp:Auth.compare
 
 let auth_id { Auth.fingerprint = f; _ } =
   match Keys.find keys f with
