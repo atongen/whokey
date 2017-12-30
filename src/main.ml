@@ -44,7 +44,7 @@ let get_auth_list =
     let base = auth_log_base in
     match idx with
     | 0 -> base
-    | n -> base ^ (Int.to_string n)
+    | n -> base ^ "." ^ (Int.to_string n)
   in
   let rec aux idx ac =
     let path = pathname idx in
