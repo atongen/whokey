@@ -24,11 +24,11 @@ let file_exists path =
     false
 
 let run cmd =
-	let open Core.Std in
+	let open Core in
   let inp = Unix.open_process_in cmd in
   let r = In_channel.input_lines inp in
   In_channel.close inp; r
 
 let get_file_lines file =
-	let open Core.Std in
+	let open Core in
 	In_channel.read_lines file

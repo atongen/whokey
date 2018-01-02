@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 
 let keys_alist = [
   "SHA256:v+4hK/EOo7Wl2akOEJvYBXRKQnJ4TE6YnmgsPOiFqrw", "aleckloss@Alec-K-MBP.local";

@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 
 type t = string String.Map.t
 
@@ -9,7 +9,7 @@ let alist_from_file path =
     (fingerprint, key_json |> Yojson.Basic.Util.to_string))
 
 let from_alist alist =
-  Map.of_alist_exn alist ~comparator:String.comparator
+  String.Map.of_alist_exn alist
 
 let from_file path =
   from_alist (alist_from_file path)
