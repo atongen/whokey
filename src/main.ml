@@ -30,14 +30,14 @@ let lasts last_list =
 	List.map ~f:Last.of_string
 
 let get_last_list =
-  (* Util.run "last -FRad" *)
-  let cwd = Unix.getcwd() in
-  lasts (Util.get_file_lines (cwd ^ "/last.log"))
+  (* let cwd = Unix.getcwd() in
+  lasts (Util.get_file_lines (cwd ^ "/last.log")) *)
+  lasts (Util.run "last -FRad")
 
 let auth_log_base =
-  (* "/var/log/auth.log" *)
-  let cwd = Unix.getcwd() in
-  cwd ^ "/auth.log"
+  (* let cwd = Unix.getcwd() in
+  cwd ^ "/auth.log" *)
+  "/var/log/auth.log"
 
 let get_auth_list =
   let pathname idx =
