@@ -1,7 +1,7 @@
 opam-version: "2.0"
 name: "whokey"
 version: "0.1.1"
-synopsis: ""
+synopsis: "Who Key"
 maintainer: "Andrew Tongen <atongen@gmail.com>"
 authors: "Andrew Tongen <atongen@gmail.com>"
 license: "https://github.com/atongen/whokey"
