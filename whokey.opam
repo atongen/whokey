@@ -16,7 +16,7 @@ build: [
   [make]
 ]
 install: [make "install"]
-dev-repo: "ssh://git@mercury/whokey.git"
+dev-repo: "git://mercury/whokey.git"
 url {
   src: "git+file:///home/atongen/Workspace/personal/whokey#master"
 }
