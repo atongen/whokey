@@ -1,0 +1,22 @@
+opam-version: "2.0"
+name: "whokey"
+version: "0.1.1"
+synopsis: ""
+maintainer: "Andrew Tongen <atongen@gmail.com>"
+authors: "Andrew Tongen <atongen@gmail.com>"
+license: "https://github.com/atongen/whokey"
+homepage: "https://github.com/atongen/whokey"
+bug-reports: "https://github.com/atongen/whokey"
+depends: [
+  "containers" {= "2.5"}
+  "lwt" {= "4.1.0"}
+]
+build: [
+  ["./configure" "--prefix=%{prefix}%"]
+  [make]
+]
+install: [make "install"]
+dev-repo: "ssh://git@mercury/whokey.git"
+url {
+  src: "git+file:///home/atongen/Workspace/personal/whokey#master"
+}

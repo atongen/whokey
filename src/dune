@@ -1,0 +1,11 @@
+(executable
+ (name whokey)
+ (public_name whokey)
+ (modules
+  whokey)
+ (libraries
+  lwt
+  lwt.unix
+  str
+  containers)
+ (package whokey))
