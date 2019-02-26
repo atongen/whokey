@@ -22,7 +22,6 @@ type last = {
     status: status;
 }
 
-
 let days = ["Sun", 0; "Mon", 1; "Tue", 2; "Wed", 3; "Thu", 4; "Fri", 5; "Sat", 6]
 let days_ar = List.map fst days |> Array.of_list
 let months =
@@ -42,10 +41,6 @@ let fingerprint_to_string = function
     | Sha256 s -> s
 
 let make_last_timestamp mon day hour min sec year =
-    (*
-    let msg = Printf.sprintf "mon: %s, day: %d, hour: %d, min: %d, sec: %d, year %d" mon day hour min sec year in
-    ignore(print_endline msg);
-    *)
     let mon = List.assoc mon months in
     fst (Unix.mktime {
         Unix.tm_sec=sec;
@@ -177,12 +172,7 @@ let build_fingerprint_table keys_path =
 
 let find_last_in_auths last auths =
     let maybe_auth = List.find_opt (fun (auth: auth) ->
-        let result = abs_float (auth.timestamp -. last.timestamp) < 2.0 in
-        (*
-        let msg = Printf.sprintf "auth: %f, last: %f: %b" auth.timestamp last.timestamp result in
-        ignore(print_endline msg);
-        *)
-        result
+        abs_float (auth.timestamp -. last.timestamp) <= 1.0
     ) auths in
     match maybe_auth with
     | Some auth -> Some (last, auth)
@@ -200,31 +190,24 @@ let format_time time =
     (tm.tm_year + 1900)
 
 let status_to_string = function
-    | StillLoggedIn -> "still logged in"
+    | StillLoggedIn -> "still logged in         "
     | LoggedOut f -> format_time f
 
-let last_to_string last =
-    Printf.sprintf "%s %s %s %s"
-    (format_time last.timestamp) (status_to_string last.status) last.pts
-
-let print_last_auth_pair last auth =
-    Lwt_io.printf "%s %s - %s %s %s\n"
-        auth.comment
+let last_auth_pair_to_string last auth =
+    Printf.sprintf "%s - %s %s %s %s"
         (format_time last.timestamp)
         (status_to_string last.status)
+        auth.comment
         last.pts
         auth.host
 
-let go whoami keys_path auth_path =
+let go whoami keys_path auth_path_0 auth_path_1 =
     (* keys *)
     let keys = build_fingerprint_table keys_path in
-    (*
-    Hashtbl.iter (fun f c -> print_endline (Printf.sprintf "%s %s" f c)) keys;
-    *)
 
     (* auth *)
     let auth_match = Printf.sprintf "Accepted publickey for %s" whoami in
-    let auth_stream = Lwt_process.pread_lines ("", [|"cat"; auth_path|]) in
+    let auth_stream = Lwt_process.pread_lines ("", [|"cat"; auth_path_0; auth_path_1|]) in
     let auths = Lwt_stream.filter_map (fun line ->
         if contains line auth_match then
             Some (parse_auth_line line keys)
@@ -235,31 +218,22 @@ let go whoami keys_path auth_path =
     (* last *)
     auths >>= fun auth_list ->
     let last_stream = Lwt_process.pread_lines ("", [|"last"; "-Fad"; whoami|]) in
-    (*let last_stream = Lwt_process.pread_lines ("", [|"cat"; "/home/atongen/Workspace/personal/whokey/archive/staging-last.log"|]) in*)
+
+    (* TODO: map and sort on last timestamp *)
     Lwt_stream.iter_p (fun line ->
         let maybe_last = parse_last_line line whoami in
         match maybe_last with
         | Some last -> (
             match find_last_in_auths last auth_list with
-            | Some (last, auth) -> print_last_auth_pair last auth
-            | None ->
-                (*
-                let str = last_to_string last in
-                let msg = Printf.sprintf "no auth found for last: %s" str in
-                ignore(print_endline msg);
-                *)
-                Lwt.return_unit
+            | Some (last, auth) -> Lwt_io.printl (last_auth_pair_to_string last auth)
+            | None -> Lwt.return_unit
         )
         | None -> Lwt.return_unit
     ) last_stream
 
 let () =
-    (*
-    let whoami = "ubuntu" in
-    let keys_path = "/home/atongen/Workspace/personal/whokey/archive/authorized_keys" in
-    let auth_path = "/home/atongen/Workspace/personal/whokey/archive/staging-auth.log" in
-    *)
     let whoami = read_process "whoami" |> String.trim in
     let keys_path = Printf.sprintf "/home/%s/.ssh/authorized_keys" whoami in
-    let auth_path  = "/var/log/auth.log" in
-    Lwt_main.run (go whoami keys_path auth_path)
+    let auth_path_0  = "/var/log/auth.log" in
+    let auth_path_1  = "/var/log/auth.log" in
+    Lwt_main.run (go whoami keys_path auth_path_0 auth_path_1)
