@@ -7,4 +7,7 @@
   lwt
   lwt.unix
   str)
+ (flags
+  -ccopt
+  -static)
  (package whokey))

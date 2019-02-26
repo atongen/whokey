@@ -20,8 +20,8 @@ type last = {
     pts: string;
     timestamp: float;
     status: status;
-    host: string;
 }
+
 
 let days = ["Sun", 0; "Mon", 1; "Tue", 2; "Wed", 3; "Thu", 4; "Fri", 5; "Sat", 6]
 let days_ar = List.map fst days |> Array.of_list
@@ -42,6 +42,10 @@ let fingerprint_to_string = function
     | Sha256 s -> s
 
 let make_last_timestamp mon day hour min sec year =
+    (*
+    let msg = Printf.sprintf "mon: %s, day: %d, hour: %d, min: %d, sec: %d, year %d" mon day hour min sec year in
+    ignore(print_endline msg);
+    *)
     let mon = List.assoc mon months in
     fst (Unix.mktime {
         Unix.tm_sec=sec;
@@ -56,7 +60,8 @@ let make_last_timestamp mon day hour min sec year =
     })
 let make_auth_timestamp mon day hour min sec =
     let now = Unix.localtime (Unix.time ()) in
-    make_last_timestamp mon day hour min sec now.tm_year
+    let year = now.tm_year + 1900 in
+    make_last_timestamp mon day hour min sec year
 
 let parse_auth_line line keys =
     Scanf.sscanf line "%s %d %d:%d:%d %s sshd[%d]: Accepted publickey for %s from %s port %d ssh2: RSA %s"
@@ -89,24 +94,20 @@ let timestamp_from_last_tokens tokens =
 let parse_last_still_logged_in tokens =
     let pts = tokens.(1) in
     let login = timestamp_from_last_tokens (Array.sub tokens 3 4) in
-    let host = tokens.(10) in
     {
         pts;
         timestamp = login;
         status = StillLoggedIn;
-        host;
     }
 
 let parse_last_logged_out tokens =
     let pts = tokens.(1) in
     let login = timestamp_from_last_tokens (Array.sub tokens 3 4) in
     let logout = timestamp_from_last_tokens (Array.sub tokens 9 4) in
-    let host = tokens.(14) in
     {
         pts;
         timestamp = login;
         status = LoggedOut logout;
-        host;
     }
 
 (* https://stackoverflow.com/questions/39813584/how-to-split-on-whitespaces-in-ocaml *)
@@ -176,8 +177,12 @@ let build_fingerprint_table keys_path =
 
 let find_last_in_auths last auths =
     let maybe_auth = List.find_opt (fun (auth: auth) ->
-        abs_float (auth.timestamp -. last.timestamp) < 2.0 &&
-            String.equal auth.host last.host
+        let result = abs_float (auth.timestamp -. last.timestamp) < 2.0 in
+        (*
+        let msg = Printf.sprintf "auth: %f, last: %f: %b" auth.timestamp last.timestamp result in
+        ignore(print_endline msg);
+        *)
+        result
     ) auths in
     match maybe_auth with
     | Some auth -> Some (last, auth)
@@ -198,17 +203,24 @@ let status_to_string = function
     | StillLoggedIn -> "still logged in"
     | LoggedOut f -> format_time f
 
+let last_to_string last =
+    Printf.sprintf "%s %s %s %s"
+    (format_time last.timestamp) (status_to_string last.status) last.pts
+
 let print_last_auth_pair last auth =
     Lwt_io.printf "%s %s - %s %s %s\n"
         auth.comment
         (format_time last.timestamp)
         (status_to_string last.status)
         last.pts
-        last.host
+        auth.host
 
 let go whoami keys_path auth_path =
     (* keys *)
     let keys = build_fingerprint_table keys_path in
+    (*
+    Hashtbl.iter (fun f c -> print_endline (Printf.sprintf "%s %s" f c)) keys;
+    *)
 
     (* auth *)
     let auth_match = Printf.sprintf "Accepted publickey for %s" whoami in
@@ -223,18 +235,30 @@ let go whoami keys_path auth_path =
     (* last *)
     auths >>= fun auth_list ->
     let last_stream = Lwt_process.pread_lines ("", [|"last"; "-Fad"; whoami|]) in
+    (*let last_stream = Lwt_process.pread_lines ("", [|"cat"; "/home/atongen/Workspace/personal/whokey/archive/staging-last.log"|]) in*)
     Lwt_stream.iter_p (fun line ->
         let maybe_last = parse_last_line line whoami in
         match maybe_last with
         | Some last -> (
             match find_last_in_auths last auth_list with
             | Some (last, auth) -> print_last_auth_pair last auth
-            | None -> Lwt.return_unit
+            | None ->
+                (*
+                let str = last_to_string last in
+                let msg = Printf.sprintf "no auth found for last: %s" str in
+                ignore(print_endline msg);
+                *)
+                Lwt.return_unit
         )
         | None -> Lwt.return_unit
     ) last_stream
 
 let () =
+    (*
+    let whoami = "ubuntu" in
+    let keys_path = "/home/atongen/Workspace/personal/whokey/archive/authorized_keys" in
+    let auth_path = "/home/atongen/Workspace/personal/whokey/archive/staging-auth.log" in
+    *)
     let whoami = read_process "whoami" |> String.trim in
     let keys_path = Printf.sprintf "/home/%s/.ssh/authorized_keys" whoami in
     let auth_path  = "/var/log/auth.log" in
