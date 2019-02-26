@@ -239,5 +239,5 @@ let () =
     let whoami = read_process "whoami" |> String.trim in
     let keys_path = Printf.sprintf "/home/%s/.ssh/authorized_keys" whoami in
     let auth_path_0  = "/var/log/auth.log" in
-    let auth_path_1  = "/var/log/auth.log" in
+    let auth_path_1  = "/var/log/auth.log.1" in
     Lwt_main.run (go whoami keys_path auth_path_0 auth_path_1)
