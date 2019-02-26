@@ -201,6 +201,8 @@ let last_auth_pair_to_string last auth =
         last.pts
         auth.host
 
+let compare_last_tuple (l0, _) (l1, _) = compare l0.timestamp l1.timestamp
+
 let go whoami keys_path auth_path_0 auth_path_1 =
     (* keys *)
     let keys = build_fingerprint_table keys_path in
@@ -218,18 +220,20 @@ let go whoami keys_path auth_path_0 auth_path_1 =
     (* last *)
     auths >>= fun auth_list ->
     let last_stream = Lwt_process.pread_lines ("", [|"last"; "-Fad"; whoami|]) in
-
-    (* TODO: map and sort on last timestamp *)
-    Lwt_stream.iter_p (fun line ->
+    let lasts_auths = Lwt_stream.filter_map (fun line ->
         let maybe_last = parse_last_line line whoami in
         match maybe_last with
-        | Some last -> (
-            match find_last_in_auths last auth_list with
-            | Some (last, auth) -> Lwt_io.printl (last_auth_pair_to_string last auth)
-            | None -> Lwt.return_unit
-        )
-        | None -> Lwt.return_unit
-    ) last_stream
+        | Some last -> find_last_in_auths last auth_list
+        | None -> None
+    ) last_stream in
+
+    Lwt_stream.to_list lasts_auths >>= fun results ->
+    let sorted = List.sort compare_last_tuple results in
+    List.iter (fun (last, auth) ->
+       print_endline (last_auth_pair_to_string last auth)
+    ) sorted;
+
+    Lwt.return_unit
 
 let () =
     let whoami = read_process "whoami" |> String.trim in
