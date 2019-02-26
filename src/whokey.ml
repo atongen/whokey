@@ -219,7 +219,7 @@ let go whoami keys_path auth_path_0 auth_path_1 =
 
     (* last *)
     auths >>= fun auth_list ->
-    let last_stream = Lwt_process.pread_lines ("", [|"last"; "-Fad"; whoami|]) in
+    let last_stream = Lwt_process.pread_lines ("", [|"last"; "-Fa"; whoami|]) in
     let lasts_auths = Lwt_stream.filter_map (fun line ->
         let maybe_last = parse_last_line line whoami in
         match maybe_last with
@@ -236,7 +236,10 @@ let go whoami keys_path auth_path_0 auth_path_1 =
     Lwt.return_unit
 
 let () =
-    let whoami = read_process "whoami" |> String.trim in
+    let whoami = if Array.length Sys.argv > 1
+        then Sys.argv.(1)
+        else read_process "whoami" |> String.trim
+    in
     let keys_path = Printf.sprintf "/home/%s/.ssh/authorized_keys" whoami in
     let auth_path_0  = "/var/log/auth.log" in
     let auth_path_1  = "/var/log/auth.log.1" in
