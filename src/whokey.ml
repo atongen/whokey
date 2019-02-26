@@ -4,23 +4,12 @@ type fingerprint =
     | Hex of string
     | Sha256 of string
 
-type key = {
-    bytes: int;
-    fingerprint: fingerprint;
-    comment: string;
-}
-
 type auth = {
     timestamp: float;
     host: string;
     port: int;
     fingerprint: fingerprint;
-}
-
-type auth_key = {
-    timestamp: float;
-    comment: string;
-    host: string;
+    comment: string
 }
 
 type status =
@@ -69,15 +58,18 @@ let make_auth_timestamp mon day hour min sec =
     let now = Unix.localtime (Unix.time ()) in
     make_last_timestamp mon day hour min sec now.tm_year
 
-(* Feb 23 19:28:03 drip-production-ansible sshd[27871]: Accepted publickey for app from 73.71.195.74 port 38547 ssh2: RSA 45:53:65:5c:2c:fb:21:f3:bf:fc:e7:93:15:60:a4:5a *)
-let parse_auth_line line =
+let parse_auth_line line keys =
     Scanf.sscanf line "%s %d %d:%d:%d %s sshd[%d]: Accepted publickey for %s from %s port %d ssh2: RSA %s"
     (fun mon day hour min sec _ _ _ host port fingerprint ->
+        let comment = match Hashtbl.find_opt keys fingerprint with
+        | Some c -> c
+        | None -> "[UNKNOWN]" in
         {
             timestamp = make_auth_timestamp mon day hour min sec;
             host;
             port;
             fingerprint = fingerprint_of_string fingerprint;
+            comment;
         }
     )
 
@@ -120,11 +112,9 @@ let parse_last_logged_out tokens =
 (* https://stackoverflow.com/questions/39813584/how-to-split-on-whitespaces-in-ocaml *)
 let split str = Str.split (Str.regexp "[ \n\r\x0c\t]+") str
 
+let split_lines str = Str.split (Str.regexp "\n+") str
 
-(**
- * ubuntu   pts/2        Sat Feb 23 16:00:04 2019   still logged in                       c-174-52-112-147.hsd1.ut.comcast.net
- * ubuntu   pts/1        Sat Feb 23 15:46:00 2019 - Sat Feb 23 16:05:51 2019  (00:19)     c-73-71-195-74.hsd1.ca.comcast.net
- *)
+
 let parse_last_line line whoami =
     if contains line whoami then
         let tokens = split line in
@@ -144,15 +134,6 @@ let compact l =
     in
     aux [] (List.rev l)
 
-let zip_auths_keys (auths: auth list) (keys: key list) =
-    List.map (fun auth ->
-        let maybe_key = List.find_opt (fun (k: key) -> auth.fingerprint = k.fingerprint) keys in
-        match maybe_key with
-        | Some key -> Some { timestamp = auth.timestamp; comment = key.comment; host = auth.host }
-        | None -> None
-    ) auths
-    |> compact
-
 (* synchronous *)
 let read_process command =
     let buffer_size = 2048 in
@@ -167,24 +148,39 @@ let read_process command =
     ignore (Unix.close_process_in in_channel);
     Buffer.contents buffer
 
-let parse_key_line path =
-    let fingerprint_line = read_process (Printf.sprintf "ssh-keygen -lf %s" path) in
-    Scanf.sscanf fingerprint_line "%d %s %s (RSA)"
-    (fun bytes fingerprint comment ->
-        {
-            bytes;
-            fingerprint = fingerprint_of_string fingerprint;
-            comment;
-        }
-    )
+let read_process_lines command = split_lines (read_process command)
 
-let find_last_auth_key last auth_keys =
-    let maybe_auth_key = List.find_opt (fun (ak: auth_key) ->
-        abs_float (ak.timestamp -. last.timestamp) < 2.0 &&
-            String.equal ak.host last.host
-    ) auth_keys in
-    match maybe_auth_key with
-    | Some auth_key -> Some (last, auth_key)
+let build_fingerprint_table keys_path =
+    let cmd = Printf.sprintf "cat %s" keys_path in
+    let lines = read_process_lines cmd in
+    let tbl = Hashtbl.create (List.length lines) in
+    List.iter (fun line ->
+        (* Open a temporary file for reading and writing. *)
+        let name = Filename.temp_file "whokey-" ".tmp" in
+        let descr = Unix.openfile name [Unix.O_RDWR] 0o600 in
+
+        (* Write ten lines of output. *)
+        let out_channel = Unix.out_channel_of_descr descr in
+        Printf.fprintf out_channel "%s\n" line;
+        flush out_channel;
+
+        let fingerprint_line = read_process (Printf.sprintf "ssh-keygen -lf %s" name) in
+        Scanf.sscanf fingerprint_line "%d %s %s (RSA)"
+        (fun _ fingerprint comment -> Hashtbl.add tbl fingerprint comment);
+
+        (* Close the underlying file descriptor and remove the file. *)
+        Unix.close descr;
+        Sys.remove name;
+    ) lines;
+    tbl
+
+let find_last_in_auths last auths =
+    let maybe_auth = List.find_opt (fun (auth: auth) ->
+        abs_float (auth.timestamp -. last.timestamp) < 2.0 &&
+            String.equal auth.host last.host
+    ) auths in
+    match maybe_auth with
+    | Some auth -> Some (last, auth)
     | None -> None
 
 let format_time time =
@@ -202,9 +198,9 @@ let status_to_string = function
     | StillLoggedIn -> "still logged in"
     | LoggedOut f -> format_time f
 
-let print_last_auth_key_pairs (last, auth_key) =
+let print_last_auth_pair last auth =
     Lwt_io.printf "%s %s - %s %s %s\n"
-        auth_key.comment
+        auth.comment
         (format_time last.timestamp)
         (status_to_string last.status)
         last.pts
@@ -212,59 +208,34 @@ let print_last_auth_key_pairs (last, auth_key) =
 
 let go whoami keys_path auth_path =
     (* keys *)
-    let keys_stream = Lwt_process.pread_lines ("", [|"cat"; keys_path|]) in
-    let keys = Lwt_stream.map (fun line ->
-        (* Open a temporary file for reading and writing. *)
-        let name = Filename.temp_file "whokey-" ".tmp" in
-        let descr = Unix.openfile name [Unix.O_RDWR] 0o600 in
-
-        (* Write ten lines of output. *)
-        let out_channel = Unix.out_channel_of_descr descr in
-        Printf.fprintf out_channel "%s\n" line;
-        flush out_channel;
-
-        let key = parse_key_line name in
-
-        (* Close the underlying file descriptor and remove the file. *)
-        Unix.close descr;
-        Sys.remove name;
-
-        key
-    ) keys_stream
-    |> Lwt_stream.to_list in
+    let keys = build_fingerprint_table keys_path in
 
     (* auth *)
     let auth_match = Printf.sprintf "Accepted publickey for %s" whoami in
     let auth_stream = Lwt_process.pread_lines ("", [|"cat"; auth_path|]) in
     let auths = Lwt_stream.filter_map (fun line ->
         if contains line auth_match then
-            Some (parse_auth_line line)
+            Some (parse_auth_line line keys)
         else None
     ) auth_stream
     |> Lwt_stream.to_list in
 
     (* last *)
-    keys >>= fun key_list ->
     auths >>= fun auth_list ->
-    let auth_keys = zip_auths_keys auth_list key_list in
     let last_stream = Lwt_process.pread_lines ("", [|"last"; "-Fad"; whoami|]) in
-    let lasts = Lwt_stream.filter_map (fun line ->
+    Lwt_stream.iter_p (fun line ->
         let maybe_last = parse_last_line line whoami in
         match maybe_last with
-        | Some last -> find_last_auth_key last auth_keys
-        | None -> None
-    ) last_stream in
-
-    Lwt_stream.iter_p print_last_auth_key_pairs lasts
+        | Some last -> (
+            match find_last_in_auths last auth_list with
+            | Some (last, auth) -> print_last_auth_pair last auth
+            | None -> Lwt.return_unit
+        )
+        | None -> Lwt.return_unit
+    ) last_stream
 
 let () =
-    (*let whoami = read_process "whoami" in*)
-    let whoami = "ubuntu" in
-
-    (*let keys_path = Printf.sprintf "/home/%s/.ssh/authorized_keys" whoami in*)
-    let keys_path = "/home/atongen/.ssh/authorized_keys" in
-
-    (* let auth_path  = "/var/log/auth.log" *)
-    let auth_path = "/home/atongen/Workspace/personal/whokey/archive/auth.txt" in
-
+    let whoami = read_process "whoami" |> String.trim in
+    let keys_path = Printf.sprintf "/home/%s/.ssh/authorized_keys" whoami in
+    let auth_path  = "/var/log/auth.log" in
     Lwt_main.run (go whoami keys_path auth_path)

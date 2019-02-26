@@ -6,6 +6,5 @@
  (libraries
   lwt
   lwt.unix
-  str
-  containers)
+  str)
  (package whokey))
