@@ -1,5 +1,3 @@
-open Lwt.Infix
-
 type fingerprint =
     | Hex of string
     | Sha256 of string
@@ -58,20 +56,22 @@ let make_auth_timestamp mon day hour min sec =
     let year = now.tm_year + 1900 in
     make_last_timestamp mon day hour min sec year
 
-let parse_auth_line line keys =
-    Scanf.sscanf line "%s %d %d:%d:%d %s sshd[%d]: Accepted publickey for %s from %s port %d ssh2: RSA %s"
-    (fun mon day hour min sec _ _ _ host port fingerprint ->
-        let comment = match Hashtbl.find_opt keys fingerprint with
-        | Some c -> c
-        | None -> "[UNKNOWN]" in
-        {
-            timestamp = make_auth_timestamp mon day hour min sec;
-            host;
-            port;
-            fingerprint = fingerprint_of_string fingerprint;
-            comment;
-        }
-    )
+let parse_auth_line ~keys line =
+    try
+        Scanf.sscanf line "%s %d %d:%d:%d %s sshd[%d]: Accepted publickey for %s from %s port %d ssh2: RSA %s"
+        (fun mon day hour min sec _ _ _ host port fingerprint ->
+            let comment = match Hashtbl.find_opt keys fingerprint with
+            | Some c -> c
+            | None -> "[UNKNOWN]" in
+            Some {
+                timestamp = make_auth_timestamp mon day hour min sec;
+                host;
+                port;
+                fingerprint = fingerprint_of_string fingerprint;
+                comment;
+            }
+        )
+    with e -> None
 
 let auth_to_string (auth: auth) =
     Printf.sprintf "%f %s %d %s" auth.timestamp auth.host auth.port (fingerprint_to_string auth.fingerprint)
@@ -108,9 +108,6 @@ let parse_last_logged_out tokens =
 (* https://stackoverflow.com/questions/39813584/how-to-split-on-whitespaces-in-ocaml *)
 let split str = Str.split (Str.regexp "[ \n\r\x0c\t]+") str
 
-let split_lines str = Str.split (Str.regexp "\n+") str
-
-
 let parse_last_line line whoami =
     if contains line whoami then
         let tokens = split line in
@@ -121,36 +118,47 @@ let parse_last_line line whoami =
         else None
     else None
 
-let compact l =
-    let rec aux acc = function
-    | [] -> acc
-    | hd :: tl -> match hd with
-        | Some x -> aux (x :: acc) tl
-        | None -> aux acc tl
+let read_chan_filter_map chan f =
+    let rec aux chan acc =
+        try
+            let line = input_line chan in
+            match f line with
+            | Some s -> aux chan (s :: acc)
+            | None -> aux chan acc
+        with End_of_file ->
+            close_in chan;
+            acc
     in
-    aux [] (List.rev l)
+    List.rev @@ aux chan []
 
-(* synchronous *)
-let read_process command =
-    let buffer_size = 2048 in
-    let buffer = Buffer.create buffer_size in
-    let string = Bytes.create buffer_size in
-    let in_channel = Unix.open_process_in command in
-    let chars_read = ref 1 in
-    while !chars_read <> 0 do
-        chars_read := input in_channel string 0 buffer_size;
-        Buffer.add_substring buffer (Bytes.to_string string) 0 !chars_read
-    done;
-    ignore (Unix.close_process_in in_channel);
-    Buffer.contents buffer
+let read_process_line command =
+    let ic = Unix.open_process_in command in
+    let line = input_line ic in
+    close_in ic;
+    String.trim line
 
-let read_process_lines command = split_lines (read_process command)
+let read_process_filter_map command f =
+    let chan = Unix.open_process_in command in
+    read_chan_filter_map chan f
+
+let read_file_filter_map path f =
+    let chan = open_in path in
+    read_chan_filter_map chan f
+
+let read_files_filter_map paths f =
+    List.map (fun path -> read_file_filter_map path f) paths
+    |> List.concat
+
+let read_file_iter path f =
+    let rec aux chan =
+        try f @@ input_line chan
+        with End_of_file -> close_in chan
+    in
+    aux @@ open_in path
 
 let build_fingerprint_table keys_path =
-    let cmd = Printf.sprintf "cat %s" keys_path in
-    let lines = read_process_lines cmd in
-    let tbl = Hashtbl.create (List.length lines) in
-    List.iter (fun line ->
+    let tbl = Hashtbl.create 10 in
+    read_file_iter keys_path (fun line ->
         (* Open a temporary file for reading and writing. *)
         let name = Filename.temp_file "whokey-" ".tmp" in
         let descr = Unix.openfile name [Unix.O_RDWR] 0o600 in
@@ -160,15 +168,14 @@ let build_fingerprint_table keys_path =
         Printf.fprintf out_channel "%s\n" line;
         flush out_channel;
 
-        let fingerprint_line = read_process (Printf.sprintf "ssh-keygen -lf %s" name) in
+        let fingerprint_line = read_process_line (Printf.sprintf "ssh-keygen -lf %s" name) in
         Scanf.sscanf fingerprint_line "%d %s %s (RSA)"
         (fun _ fingerprint comment -> Hashtbl.add tbl fingerprint comment);
 
         (* Close the underlying file descriptor and remove the file. *)
         Unix.close descr;
         Sys.remove name;
-    ) lines;
-    tbl
+    ); tbl
 
 let find_last_in_auths last auths =
     let maybe_auth = List.find_opt (fun (auth: auth) ->
@@ -201,46 +208,30 @@ let last_auth_pair_to_string last auth =
         last.pts
         auth.host
 
-let compare_last_tuple (l0, _) (l1, _) = compare l0.timestamp l1.timestamp
-
-let go whoami keys_path auth_path_0 auth_path_1 =
-    (* keys *)
+let process whoami keys_path auth_paths =
     let keys = build_fingerprint_table keys_path in
 
-    (* auth *)
     let auth_match = Printf.sprintf "Accepted publickey for %s" whoami in
-    let auth_stream = Lwt_process.pread_lines ("", [|"cat"; auth_path_0; auth_path_1|]) in
-    let auths = Lwt_stream.filter_map (fun line ->
-        if contains line auth_match then
-            Some (parse_auth_line line keys)
+    let auth_list = read_files_filter_map auth_paths (fun line ->
+        if contains line auth_match then parse_auth_line ~keys line
         else None
-    ) auth_stream
-    |> Lwt_stream.to_list in
+    ) in
 
     (* last *)
-    auths >>= fun auth_list ->
-    let last_stream = Lwt_process.pread_lines ("", [|"last"; "-Fa"; whoami|]) in
-    let lasts_auths = Lwt_stream.filter_map (fun line ->
+    let last_cmd = Printf.sprintf "last -Fa %s" whoami in
+    read_process_filter_map last_cmd (fun line ->
         let maybe_last = parse_last_line line whoami in
         match maybe_last with
         | Some last -> find_last_in_auths last auth_list
-        | None -> None
-    ) last_stream in
-
-    Lwt_stream.to_list lasts_auths >>= fun results ->
-    let sorted = List.sort compare_last_tuple results in
-    List.iter (fun (last, auth) ->
-       print_endline (last_auth_pair_to_string last auth)
-    ) sorted;
-
-    Lwt.return_unit
+        | None -> None)
+    |> List.iter (fun (last, auth) ->
+       print_endline (last_auth_pair_to_string last auth))
 
 let () =
     let whoami = if Array.length Sys.argv > 1
         then Sys.argv.(1)
-        else read_process "whoami" |> String.trim
+        else read_process_line "whoami"
     in
     let keys_path = Printf.sprintf "/home/%s/.ssh/authorized_keys" whoami in
-    let auth_path_0  = "/var/log/auth.log" in
-    let auth_path_1  = "/var/log/auth.log.1" in
-    Lwt_main.run (go whoami keys_path auth_path_0 auth_path_1)
+    let auth_paths = ["/var/log/auth.log"; "/var/log/auth.log.1"] in
+    process whoami keys_path auth_paths

@@ -4,8 +4,7 @@
  (modules
   whokey)
  (libraries
-  lwt
-  lwt.unix
+  unix
   str)
  (flags
   -ccopt
