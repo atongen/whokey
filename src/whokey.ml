@@ -34,10 +34,6 @@ let contains s1 s2 =
 
 let fingerprint_of_string str = if contains str "SHA256:" then Sha256 str else Hex str
 
-let fingerprint_to_string = function
-    | Hex s -> Printf.sprintf "HEX:%s" s
-    | Sha256 s -> s
-
 let make_last_timestamp mon day hour min sec year =
     let mon = List.assoc mon months in
     fst (Unix.mktime {
@@ -71,10 +67,7 @@ let parse_auth_line ~keys line =
                 comment;
             }
         )
-    with e -> None
-
-let auth_to_string (auth: auth) =
-    Printf.sprintf "%f %s %d %s" auth.timestamp auth.host auth.port (fingerprint_to_string auth.fingerprint)
+    with _e -> None
 
 let timestamp_from_last_tokens tokens =
     let ts = Str.split (Str.regexp ":") tokens.(2) |> Array.of_list in
@@ -167,8 +160,10 @@ let build_fingerprint_table keys_path =
         flush out_channel;
 
         let fingerprint_line = read_process_line (Printf.sprintf "ssh-keygen -lf %s" name) in
-        Scanf.sscanf fingerprint_line "%d %s %s (RSA)"
-        (fun _ fingerprint comment -> Hashtbl.add tbl fingerprint comment);
+        try
+            Scanf.sscanf fingerprint_line "%d %s %s (RSA)"
+            (fun _ fingerprint comment -> Hashtbl.add tbl fingerprint comment);
+        with _e -> ();
 
         Unix.close descr;
         Sys.remove name;
@@ -211,7 +206,6 @@ let process whoami keys_path auth_paths =
         else None
     ) in
 
-    (* last *)
     let last_cmd = Printf.sprintf "last -Fa %s" whoami in
     read_process_filter_map last_cmd (fun line ->
         match parse_last_line line whoami with
@@ -220,8 +214,6 @@ let process whoami keys_path auth_paths =
             | Some auth -> Some (last, auth)
             | None -> None)
         | None -> None)
-    |> List.iter (fun (last, auth) ->
-       print_endline (last_auth_pair_to_string last auth))
 
 let () =
     let whoami = if Array.length Sys.argv > 1
@@ -231,3 +223,5 @@ let () =
     let keys_path = Printf.sprintf "/home/%s/.ssh/authorized_keys" whoami in
     let auth_paths = ["/var/log/auth.log"; "/var/log/auth.log.1"] in
     process whoami keys_path auth_paths
+    |> List.iter (fun (last, auth) ->
+       print_endline (last_auth_pair_to_string last auth))
