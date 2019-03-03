@@ -151,9 +151,7 @@ let read_files_filter_map paths f =
 
 let read_file_iter path f =
     let rec aux chan =
-        try
-            f @@ input_line chan;
-            aux chan
+        try f @@ input_line chan; aux chan
         with End_of_file -> close_in chan
     in
     aux @@ open_in path
@@ -161,34 +159,25 @@ let read_file_iter path f =
 let build_fingerprint_table keys_path =
     let tbl = Hashtbl.create 10 in
     read_file_iter keys_path (fun line ->
-        (* Open a temporary file for reading and writing. *)
         let name = Filename.temp_file "whokey-" ".tmp" in
         let descr = Unix.openfile name [Unix.O_RDWR] 0o600 in
 
-        (* Write ten lines of output. *)
         let out_channel = Unix.out_channel_of_descr descr in
         Printf.fprintf out_channel "%s\n" line;
         flush out_channel;
 
         let fingerprint_line = read_process_line (Printf.sprintf "ssh-keygen -lf %s" name) in
-        ignore(print_endline fingerprint_line);
         Scanf.sscanf fingerprint_line "%d %s %s (RSA)"
-        (fun _ fingerprint comment ->
-            ignore(print_endline (Printf.sprintf "%s %s" fingerprint comment));
-            Hashtbl.add tbl fingerprint comment);
+        (fun _ fingerprint comment -> Hashtbl.add tbl fingerprint comment);
 
-        (* Close the underlying file descriptor and remove the file. *)
         Unix.close descr;
         Sys.remove name;
     ); tbl
 
-let find_last_in_auths last auths =
-    let maybe_auth = List.find_opt (fun (auth: auth) ->
+let find_auth_for_last last auths =
+    List.find_opt (fun (auth: auth) ->
         abs_float (auth.timestamp -. last.timestamp) <= 1.0
-    ) auths in
-    match maybe_auth with
-    | Some auth -> Some (last, auth)
-    | None -> None
+    ) auths
 
 let format_time time =
   let tm = Unix.localtime time in
@@ -225,9 +214,11 @@ let process whoami keys_path auth_paths =
     (* last *)
     let last_cmd = Printf.sprintf "last -Fa %s" whoami in
     read_process_filter_map last_cmd (fun line ->
-        let maybe_last = parse_last_line line whoami in
-        match maybe_last with
-        | Some last -> find_last_in_auths last auth_list
+        match parse_last_line line whoami with
+        | Some last -> (
+            match find_auth_for_last last auth_list with
+            | Some auth -> Some (last, auth)
+            | None -> None)
         | None -> None)
     |> List.iter (fun (last, auth) ->
        print_endline (last_auth_pair_to_string last auth))
