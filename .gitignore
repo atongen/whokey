@@ -7,3 +7,4 @@ whokey.install
 /bin
 /lib
 /.vscode
+/dist

@@ -151,7 +151,9 @@ let read_files_filter_map paths f =
 
 let read_file_iter path f =
     let rec aux chan =
-        try f @@ input_line chan
+        try
+            f @@ input_line chan;
+            aux chan
         with End_of_file -> close_in chan
     in
     aux @@ open_in path
@@ -169,8 +171,11 @@ let build_fingerprint_table keys_path =
         flush out_channel;
 
         let fingerprint_line = read_process_line (Printf.sprintf "ssh-keygen -lf %s" name) in
+        ignore(print_endline fingerprint_line);
         Scanf.sscanf fingerprint_line "%d %s %s (RSA)"
-        (fun _ fingerprint comment -> Hashtbl.add tbl fingerprint comment);
+        (fun _ fingerprint comment ->
+            ignore(print_endline (Printf.sprintf "%s %s" fingerprint comment));
+            Hashtbl.add tbl fingerprint comment);
 
         (* Close the underlying file descriptor and remove the file. *)
         Unix.close descr;

@@ -7,7 +7,9 @@ authors: "Andrew Tongen <atongen@gmail.com>"
 license: "https://github.com/atongen/whokey"
 homepage: "https://github.com/atongen/whokey"
 bug-reports: "https://github.com/atongen/whokey"
-depends: []
+depends: [
+  "dune" {build}
+]
 build: [
   ["./configure" "--prefix=%{prefix}%"]
   [make]
