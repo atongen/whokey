@@ -205,7 +205,9 @@ let last_auth_pair_to_string last auth =
     last.pts
     auth.host
 
-let process whoami keys_path auth_paths =
+let process whoami =
+  let auth_paths = ["/var/log/auth.log"; "/var/log/auth.log.1"] in
+  let keys_path = Printf.sprintf "/home/%s/.ssh/authorized_keys" whoami in
   let keys = build_fingerprint_table keys_path in
 
   let auth_match = Printf.sprintf "Accepted publickey for %s" whoami in
@@ -223,13 +225,23 @@ let process whoami keys_path auth_paths =
           | None -> None)
       | None -> None)
 
+let usage = {eousage|
+Usage: whokey [USER]
+Print login information from `last` command, including key information from auth.log
+|eousage}
+
 let () =
-  let whoami = if Array.length Sys.argv > 1
-    then Sys.argv.(1)
-    else read_process_line "whoami"
-  in
-  let keys_path = Printf.sprintf "/home/%s/.ssh/authorized_keys" whoami in
-  let auth_paths = ["/var/log/auth.log"; "/var/log/auth.log.1"] in
-  process whoami keys_path auth_paths
-  |> List.iter (fun (last, auth) ->
-      print_endline (last_auth_pair_to_string last auth))
+  let n = Array.length Sys.argv in
+  if (n = 2 && List.mem Sys.argv.(1) ["-h"; "--help"]) || n > 2 then
+    print_string usage
+  else
+    let whoami = if n = 2
+      then Sys.argv.(1)
+      else read_process_line "whoami"
+    in
+    try
+      process whoami |> List.iter (fun (last, auth) ->
+          print_endline (last_auth_pair_to_string last auth))
+    with e ->
+      let msg = Printexc.to_string e in
+      print_endline msg; print_string usage
