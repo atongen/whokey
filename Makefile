@@ -20,7 +20,7 @@ build:
 
 dist: distclean build
 	@docker run --name ${NAME}-dist --rm --detach --network=host -it ${NAME}
-	@docker cp ${NAME}-dist:/${NAME}/_build/default/src/${NAME}.exe ./dist/${NAME}
+	@docker cp ${NAME}-dist:/${NAME}/_build/default/src/${NAME}.exe ./dist/${NAME}-${VERSION}
 	@docker kill ${NAME}-dist
 
 sign: dist
