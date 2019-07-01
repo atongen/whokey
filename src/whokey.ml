@@ -157,6 +157,21 @@ let read_file_iter path f =
   in
   aux @@ open_in path
 
+let handle_exc e = ignore(Printexc.to_string e |> print_endline)
+
+(* http://caml.inria.fr/pub/ml-archives/caml-list/2003/07/5ff669a9d2be35ec585b536e2e0fc7ca.en.html *)
+let protect ~f ~(finally: unit -> unit) =
+  let result = ref None in
+  try
+    result := Some (f ());
+    raise Exit
+  with
+    Exit as e ->
+    finally ();
+    (match !result with Some x -> x | None -> raise e)
+  | e ->
+    finally (); raise e
+
 let build_fingerprint_table keys_path =
   let tbl = Hashtbl.create 10 in
   read_file_iter keys_path (fun line ->
@@ -168,13 +183,14 @@ let build_fingerprint_table keys_path =
       flush out_channel;
 
       let fingerprint_line = read_process_line (Printf.sprintf "ssh-keygen -lf %s" name) in
-      try
-        Scanf.sscanf fingerprint_line "%d %s %s (RSA)"
-          (fun _ fingerprint comment -> Hashtbl.add tbl fingerprint comment);
-      with _e -> ();
-
-        Unix.close descr;
-        Sys.remove name;
+      protect ~f:(fun () ->
+          Scanf.sscanf fingerprint_line "%d %s %s (RSA)"
+            (fun _ fingerprint comment -> Hashtbl.add tbl fingerprint comment)
+        ) ~finally:(fun () ->
+          Unix.close descr;
+          Sys.remove name;
+          ()
+        )
     ); tbl
 
 let find_auth_for_last last auths =
@@ -242,6 +258,4 @@ let () =
     try
       process whoami |> List.iter (fun (last, auth) ->
           print_endline (last_auth_pair_to_string last auth))
-    with e ->
-      let msg = Printexc.to_string e in
-      print_endline msg; print_string usage
+    with e -> handle_exc e; print_string usage
